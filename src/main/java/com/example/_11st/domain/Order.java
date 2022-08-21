@@ -58,4 +58,5 @@ public class Order extends AuditingCreateUpdateEntity {
     public void updateOrderAmount(Long orderAmount) {
         this.orderAmount += orderAmount;
     }
+
 }

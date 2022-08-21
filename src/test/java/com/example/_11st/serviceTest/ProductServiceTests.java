@@ -15,6 +15,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,9 +26,10 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(TestInstance.Lifecycle.PER_METHOD)
 @Transactional
 @ExtendWith(SpringExtension.class)
+@ActiveProfiles("test")
 @SpringBootTest
 public class ProductServiceTests {
 
@@ -35,13 +37,11 @@ public class ProductServiceTests {
     private ProductService productService;
 
     @Autowired
-    private ProductRepository productRepository;
-
-    @Autowired
     private OrderedProductRepository orderedProductRepository;
 
     @BeforeAll
-    public void setup(@Autowired SellerRepository sellerRepository) {
+    static void setup(@Autowired SellerRepository sellerRepository,
+                      @Autowired ProductRepository productRepository) {
 
         final Seller SAMSUNG = Seller.builder()
                 .name("삼성전자")
@@ -303,9 +303,114 @@ public class ProductServiceTests {
     }
 
     @Test
-    void yyyy_mm_dd_hh_mm_ss_test(){
+    void yyyy_mm_dd_hh_mm_ss_test() {
         final String PATTERN = "^([0-9]{4})-([0-1][0-9])-([0-3][0-9])\\s([0-1][0-9]|[2][0-3]):([0-5][0-9]):([0-5][0-9])$";
-        String s = "2022-01-01 00:00:00";
-        assertTrue(s.matches(PATTERN));
+        String displayDate = "2022-01-01 00:00:00";
+        assertTrue(displayDate.matches(PATTERN));
+        String displayDate2 = "2000-99-00 00:00:00";
+        assertFalse(displayDate2.matches(PATTERN));
     }
+
+    @DisplayName("order취소시 orderedProduct cascading돼서 delete 되는지")
+    @Test
+    void Should_CascadingDelete_When_CancelOrder() {
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L, 3L));
+        final List<Long> quantity = new ArrayList<>(List.of(4L, 2L, 1L));
+        final String address = "경기도 용인시 수지구";
+        List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
+
+        Long orderId = orders.get(0).getId();
+        productService.cancel("greatpeople", orderId, 10000000L);
+        List<OrderedProduct> orderedProducts = orderedProductRepository.findAllByOrderId(orderId);
+        assertEquals(0, orderedProducts.size());
+    }
+
+    @DisplayName("본인 혹은 운영자가 아닌 사람이 주문취소할 때")
+    @Test
+    void Should_ThrowException_WhenStrangerTryToDelete_Order() {
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L, 3L));
+        final List<Long> quantity = new ArrayList<>(List.of(4L, 2L, 1L));
+        final String address = "경기도 용인시 수지구";
+        List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
+
+        Long orderId = orders.get(0).getId();
+
+        Throwable ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.cancel("STRANGER-PK", orderId, 10000000L)
+        );
+        assertEquals("본인이 아니면 취소할 수 없습니다.", ex.getMessage());
+    }
+
+    @DisplayName("운영자가 주문 삭제")
+    @Test
+    void Should_Delete_WhenAdminTryDelete() {
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L, 3L));
+        final List<Long> quantity = new ArrayList<>(List.of(4L, 2L, 1L));
+        final String address = "경기도 용인시 수지구";
+
+        // 일반인이 주문
+        List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
+
+        Long orderId = orders.get(0).getId();
+
+        // 어드민이 삭제
+        productService.cancel("admin's primary-key", orderId, 10000000L);
+    }
+
+    @DisplayName("부분 취소")
+    @Test
+    void Should_Delete_PartOfOrder() {
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L));
+        final List<Long> quantity = new ArrayList<>(List.of(1L, 1L));
+        final String address = "경기도 용인시 수지구";
+        List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
+
+        Long orderId = orders.get(0).getId();
+
+        productService.cancel("greatpeople", orderId, 20000L);
+
+        List<OrderedProduct> orderedProducts = orderedProductRepository.findAllByOrderId(orderId);
+        assertEquals(1, orderedProducts.size());
+    }
+
+    @DisplayName("전체 취소")
+    @Test
+    void Should_Delete_AllOfOrder() {
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L));
+        final List<Long> quantity = new ArrayList<>(List.of(1L, 1L));
+        final String address = "경기도 용인시 수지구";
+        List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
+
+        Long orderId = orders.get(0).getId();
+
+        productService.cancel("greatpeople", orderId, 30000L);
+
+        List<OrderedProduct> orderedProducts = orderedProductRepository.findAllByOrderId(orderId);
+        assertEquals(0, orderedProducts.size());
+    }
+
+    @DisplayName("재고 부족")
+    @Test
+    void Should_ThrowException_When_OutOfStock() {
+        final List<Long> productIds = new ArrayList<>(List.of(1L));
+        final List<Long> quantity = new ArrayList<>(List.of(2000000L));
+        final String address = "경기도 용인시 수지구";
+
+        assertThrows(IllegalArgumentException.class, () ->
+                productService.order("greatpeople", productIds, 100000000000L, address, quantity)
+        );
+    }
+
+    @DisplayName("주문금액이 부족")
+    @Test
+    void Should_ThrowException_WhenOrderAmountIs_Insufficient() {
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L, 3L));
+        final List<Long> quantity = new ArrayList<>(List.of(1L, 1L, 1L));
+        final String address = "경기도 용인시 수지구";
+
+        assertThrows(IllegalArgumentException.class, () ->
+                productService.order("greatpeople", productIds, 30000L, address, quantity)
+        );
+    }
+
 }
