@@ -3,10 +3,7 @@ package com.example._11st.dto.Response;
 
 import com.example._11st.domain.Order;
 import com.example._11st.domain.OrderedProduct;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.List;
 
@@ -16,6 +13,8 @@ public class OrderRespDTO {
 
     @Getter
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class History {
 
         private Long orderId;
@@ -38,6 +37,8 @@ public class OrderRespDTO {
 
     @Getter
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class OrderProduct {
 
         private String productName;

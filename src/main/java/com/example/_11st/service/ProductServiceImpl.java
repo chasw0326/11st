@@ -36,17 +36,13 @@ public class ProductServiceImpl implements ProductService {
 
     private final String ADMINISTRATOR = "admin's primary-key";
 
-    private final String PATTERN = "^([0-9]{4})-([0-1][0-9])-([0-3][0-9])\\s([0-1][0-9]|[2][0-3]):([0-5][0-9]):([0-5][0-9])$";
 
     @Override
     @Transactional(readOnly = true)
     public List<ProductRespDTO.Inquiry> getProductDTO(String displayDate) {
         checkArgument(StringUtils.isNotEmpty(displayDate), "displayDate는 필수값 입니다.");
+        checkLocalDateTimeRegex(displayDate);
 
-//        boolean regex = PATTERN.matches(displayDate);
-//        if (!regex){
-//            throw new IllegalArgumentException("잘못된 날짜 입니다.");
-//        }
         LocalDateTime date = LocalDateTime.parse(displayDate,
                 DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
@@ -72,7 +68,6 @@ public class ProductServiceImpl implements ProductService {
         checkArgument(StringUtils.isNotEmpty(address), "address는 필수값 입니다.");
         checkArgument(ObjectUtils.isNotEmpty(quantity), "quantity는 필수값 입니다.");
 
-        log.info("이거 실행");
         Map<Long, List<Long>> sellerProductMap = new LinkedHashMap<>();
         List<Order> orders = new ArrayList<>();
 
@@ -85,7 +80,7 @@ public class ProductServiceImpl implements ProductService {
             sellerProductMap.computeIfAbsent(product.getSeller().getId(), id -> new ArrayList<>()).add(productId);
         }
 
-        int i = 0;
+        int quantityIdx = 0;
         for (Long sellerId : sellerProductMap.keySet()) {
             Order order = Order.builder()
                     .userId(userId)
@@ -103,7 +98,7 @@ public class ProductServiceImpl implements ProductService {
                     throw new IllegalArgumentException("주문금액이 부족합니다.");
                 }
 
-                if (product.getStock() - quantity.get(i) < 0) {
+                if (product.getStock() - quantity.get(quantityIdx) < 0) {
                     throw new IllegalArgumentException("out of stock");
                 }
 
@@ -111,18 +106,18 @@ public class ProductServiceImpl implements ProductService {
                     throw new IllegalArgumentException("상품 판매가 중지된 상품입니다.");
                 }
 
-                product.updateStock(quantity.get(i));
+                product.updateStock(quantity.get(quantityIdx));
 
                 OrderedProduct orderedProduct = OrderedProduct.builder()
                         .order(order)
                         .product(product)
-                        .quantity(quantity.get(i))
-                        .amount(quantity.get(i) * product.getPrice())
+                        .quantity(quantity.get(quantityIdx))
+                        .amount(quantity.get(quantityIdx) * product.getPrice())
                         .build();
 
                 orderedProductRepository.save(orderedProduct);
                 order.updateOrderAmount(product.getPrice());
-                i += 1;
+                quantityIdx += 1;
             }
         }
 
@@ -165,11 +160,9 @@ public class ProductServiceImpl implements ProductService {
         }
 
         for (OrderedProduct orderedProduct : orderedProducts) {
-            log.info("555");
             Product product = orderedProduct.getProduct();
             Long partOfPrice = product.getPrice() * orderedProduct.getQuantity();
             if (partOfPrice.equals(price)) {
-                log.info("666");
                 orderedProductRepository.deleteByProductIdAndOrderId(product.getId(), orderedProduct.getOrder().getId());
                 product.updateStock(orderedProduct.getQuantity());
             }
@@ -184,6 +177,8 @@ public class ProductServiceImpl implements ProductService {
         checkArgument(ObjectUtils.isNotEmpty(userId), "userId는 필수값 입니다.");
         checkArgument(StringUtils.isNotEmpty(startAt), "startAt은 필수값 입니다.");
         checkArgument(StringUtils.isNotEmpty(endAt), "endAt은 필수값 입니다.");
+        checkLocalDateTimeRegex(startAt);
+        checkLocalDateTimeRegex(endAt);
 
         LocalDateTime fromDate = LocalDateTime.parse(startAt,
                 DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
@@ -218,4 +213,14 @@ public class ProductServiceImpl implements ProductService {
 
         return result;
     }
+
+    private void checkLocalDateTimeRegex(String displayDate) {
+
+        final String PATTERN = "^([0-9]{4})-([0-1][0-9])-([0-3][0-9])\\s([0-1][0-9]|[2][0-3]):([0-5][0-9]):([0-5][0-9])$";
+
+        if (!displayDate.matches(PATTERN)){
+            throw new IllegalArgumentException("잘못된 날짜 입니다.");
+        }
+    }
+
 }

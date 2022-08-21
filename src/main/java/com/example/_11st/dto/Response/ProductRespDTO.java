@@ -9,6 +9,8 @@ public class ProductRespDTO {
 
     @Getter
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Inquiry {
         private Long productId;
 

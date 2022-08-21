@@ -303,8 +303,9 @@ public class ProductServiceTests {
     }
 
     @Test
-    void ex(){
-        final String PATTERN = "([0-9]{4})-([0-1][0-9])-([0-3][0-9])\\s([0-1][0-9]|[2][0-3]):([0-5][0-9]):([0-5][0-9])$";
-        System.out.println(PATTERN.matches("2022-01-01 00:00:00"));
+    void yyyy_mm_dd_hh_mm_ss_test(){
+        final String PATTERN = "^([0-9]{4})-([0-1][0-9])-([0-3][0-9])\\s([0-1][0-9]|[2][0-3]):([0-5][0-9]):([0-5][0-9])$";
+        String s = "2022-01-01 00:00:00";
+        assertTrue(s.matches(PATTERN));
     }
 }

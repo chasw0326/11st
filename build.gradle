@@ -25,6 +25,7 @@ dependencies {
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	implementation("com.google.guava:guava:31.1-jre")
 	implementation 'org.springframework.boot:spring-boot-starter-validation:2.7.0'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	// https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
 	implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.12.0'
 	runtimeOnly 'com.h2database:h2'
