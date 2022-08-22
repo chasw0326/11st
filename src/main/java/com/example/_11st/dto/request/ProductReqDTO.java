@@ -1,11 +1,10 @@
-package com.example._11st.dto.Request;
+package com.example._11st.dto.request;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 
@@ -16,7 +15,7 @@ public class ProductReqDTO {
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class DisplayDate {
+    public static class Date {
 
         @NotNull
         @Pattern(regexp = "^([0-9]{4})-([0-1][0-9])-([0-3][0-9])\\s([0-1][0-9]|[2][0-3]):([0-5][0-9]):([0-5][0-9])$",

@@ -1,10 +1,12 @@
-package com.example._11st.dto.Request;
+package com.example._11st.dto.request;
 
 
 import lombok.*;
 
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Positive;
 import java.util.List;
 
 @Getter
@@ -21,9 +23,13 @@ public class OrderReqDTO {
 
         private List<Long> quantity;
 
+        @NotNull
+        @Positive
         private Long orderAmount;
 
+        @NotBlank
         private String address;
+
     }
 
     @Getter
@@ -31,6 +37,8 @@ public class OrderReqDTO {
     @AllArgsConstructor
     public static class Cancel {
 
+        @NotNull
+        @Positive
         private Long cancelAmount;
     }
 
@@ -40,6 +48,7 @@ public class OrderReqDTO {
     public static class Period {
 
         @NotNull
+        @Positive
         private int period;
     }
 

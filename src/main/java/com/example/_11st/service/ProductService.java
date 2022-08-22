@@ -2,8 +2,8 @@ package com.example._11st.service;
 
 import com.example._11st.domain.Order;
 import com.example._11st.domain.Product;
-import com.example._11st.dto.Response.OrderRespDTO;
-import com.example._11st.dto.Response.ProductRespDTO;
+import com.example._11st.dto.response.OrderRespDTO;
+import com.example._11st.dto.response.ProductRespDTO;
 
 import java.util.List;
 
@@ -13,7 +13,7 @@ public interface ProductService {
 
     Product getProduct(Long productId);
 
-    List<Order> order(String userId, List<Long> productIds, Long price, String address, List<Long> quantity);
+    List<Order> order(String userId, List<Long> productIds, Long amount, String address, List<Long> quantity);
 
     List<OrderRespDTO.History> getOrderHistoryByBetweenStartAndEnd(String userId, String startAt, String endAt);
 

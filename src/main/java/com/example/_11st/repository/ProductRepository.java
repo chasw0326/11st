@@ -1,7 +1,7 @@
 package com.example._11st.repository;
 
 import com.example._11st.domain.Product;
-import com.example._11st.dto.Response.ProductRespDTO;
+import com.example._11st.dto.response.ProductRespDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

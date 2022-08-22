@@ -1,16 +1,17 @@
 package com.example._11st.controller;
 
 
-import com.example._11st.dto.Request.OrderReqDTO;
-import com.example._11st.dto.Response.OrderRespDTO;
-import com.example._11st.dto.Response.ProductRespDTO;
+import com.example._11st.dto.request.OrderReqDTO;
+import com.example._11st.dto.response.OrderRespDTO;
+import com.example._11st.dto.response.ProductRespDTO;
 import com.example._11st.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
-//import javax.persistence.Cacheable;
 import javax.validation.Valid;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import java.util.List;
 
 @RequestMapping("/api")
@@ -42,7 +43,7 @@ public class ProductController {
     @Cacheable(value = "historyByPeriod", key = "#period", cacheManager = "cacheManager")
     @GetMapping("/history/period/{period}")
     public List<OrderRespDTO.History> getOrderHistoryByPeriod(@RequestHeader(value = "x-user-id") String userId,
-                                                              @PathVariable int period) {
+                                                              @PathVariable @Min(1) @Max(12) int period) {
         return productService.getOrderHistoryByMonthPeriod(userId, period);
     }
 

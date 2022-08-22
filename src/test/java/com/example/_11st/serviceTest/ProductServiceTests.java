@@ -2,11 +2,9 @@ package com.example._11st.serviceTest;
 
 
 import com.example._11st.domain.*;
-import com.example._11st.dto.Response.OrderRespDTO;
-import com.example._11st.dto.Response.ProductRespDTO;
-import com.example._11st.repository.OrderedProductRepository;
-import com.example._11st.repository.ProductRepository;
-import com.example._11st.repository.SellerRepository;
+import com.example._11st.dto.response.OrderRespDTO;
+import com.example._11st.dto.response.ProductRespDTO;
+import com.example._11st.repository.*;
 import com.example._11st.service.ProductService;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -31,13 +29,19 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(SpringExtension.class)
 @ActiveProfiles("test")
 @SpringBootTest
-public class ProductServiceTests {
+class ProductServiceTests {
 
     @Autowired
     private ProductService productService;
 
     @Autowired
     private OrderedProductRepository orderedProductRepository;
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Autowired
+    private CancelRepository cancelRepository;
 
     @BeforeAll
     static void setup(@Autowired SellerRepository sellerRepository,
@@ -159,6 +163,7 @@ public class ProductServiceTests {
                 .build());
     }
 
+    @DisplayName("정상적인 단일상품 조회")
     @Test
     void Should_Get_OneProduct_When_NormalArgs() {
         Product product = productService.getProduct(1L);
@@ -166,6 +171,7 @@ public class ProductServiceTests {
         assertEquals("ddr4", product.getName());
     }
 
+    @DisplayName("정상적인 상품목록 조회")
     @Test
     void Should_Get_ProductDTO_When_NormalArsgs() {
         LocalDateTime now = LocalDateTime.now();
@@ -179,6 +185,7 @@ public class ProductServiceTests {
         assertTrue(productDTO.size() > 0);
     }
 
+    @DisplayName("조회기간에 맞는 상품이 없을 때")
     @Test
     void Should_Return_Nothing_When_No_Suitable_Product_In_DisplayDate() {
         LocalDateTime now = LocalDateTime.now();
@@ -201,17 +208,25 @@ public class ProductServiceTests {
         List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
 
         assertEquals(address, orders.get(0).getAddress());
+        assertEquals(1, orders.size());
 
-        List<List<OrderedProduct>> orderedProducts =
-                orders.stream().map(order -> orderedProductRepository.findAllByOrderId(order.getId())).collect(Collectors.toList());
+    }
 
-        int i = 0;
-        for (List<OrderedProduct> orderedProduct : orderedProducts) {
-            for (OrderedProduct product : orderedProduct) {
-                assertEquals(productIds.get(i), product.getId());
-                i++;
-            }
-        }
+    @DisplayName("Order에 맞는 OrderedProduct들이 생성되는지")
+    @Test
+    void Should_Follow_Three_OrderedProduct_When_Make_One_Order() {
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L, 3L));
+        final List<Long> quantity = new ArrayList<>(List.of(400L, 200L, 100L));
+        final String address = "경기도 용인시 수지구";
+        List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
+
+        Order order = orders.get(0);
+        assertEquals(address, orders.get(0).getAddress());
+        assertEquals(1, orders.size());
+
+        List<OrderedProduct> orderedProducts = orderedProductRepository.findAllByOrderId(order.getId());
+
+        assertEquals(3, orderedProducts.size());
 
     }
 
@@ -297,11 +312,9 @@ public class ProductServiceTests {
         List<OrderRespDTO.History> histories = productService.getOrderHistoryByMonthPeriod("greatpeople", monthPeriod);
         assertEquals(1, histories.size());
 
-        monthPeriod = 0;
-        histories = productService.getOrderHistoryByMonthPeriod("greatpeople", monthPeriod);
-        assertEquals(0, histories.size());
     }
 
+    @DisplayName("LocalDateTime 패턴 검사")
     @Test
     void yyyy_mm_dd_hh_mm_ss_test() {
         final String PATTERN = "^([0-9]{4})-([0-1][0-9])-([0-3][0-9])\\s([0-1][0-9]|[2][0-3]):([0-5][0-9]):([0-5][0-9])$";
@@ -323,6 +336,62 @@ public class ProductServiceTests {
         productService.cancel("greatpeople", orderId, 10000000L);
         List<OrderedProduct> orderedProducts = orderedProductRepository.findAllByOrderId(orderId);
         assertEquals(0, orderedProducts.size());
+    }
+
+    @DisplayName("order이 배송준비중이면 바로 취소되지 않고, Cancel Entity 생성")
+    @Test
+    void Should_Not_Cancel_When_OrderStateIs배달중비중() {
+        //given
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L, 3L));
+        final List<Long> quantity = new ArrayList<>(List.of(4L, 2L, 1L));
+        final String address = "경기도 용인시 수지구";
+        List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
+        Order order = orders.get(0);
+        Long orderId = order.getId();
+        order.updateOrderState(OrderState.배송준비중);
+
+        //when
+        productService.cancel("greatpeople", orderId, 10000000L);
+        Cancel cancel = cancelRepository.getById(1L);
+
+        //then
+        assertEquals(orderId, cancel.getOrder().getId());
+    }
+
+    @DisplayName("order이 배송완료면 취소 안 됨")
+    @Test
+    void Should_Not_Cancel_When_OrderStateIs배송완료() {
+        //given
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L, 3L));
+        final List<Long> quantity = new ArrayList<>(List.of(4L, 2L, 1L));
+        final String address = "경기도 용인시 수지구";
+        List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
+        Order order = orders.get(0);
+        Long orderId = order.getId();
+        order.updateOrderState(OrderState.배송완료);
+
+        Throwable ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.cancel("greatpeople", orderId, 100000000000L)
+        );
+        assertEquals("주문 취소 불가", ex.getMessage());
+    }
+
+    @DisplayName("order이 배송중이면 취소 안 됨")
+    @Test
+    void Should_Not_Cancel_When_OrderStateIs배송중() {
+        //given
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L, 3L));
+        final List<Long> quantity = new ArrayList<>(List.of(4L, 2L, 1L));
+        final String address = "경기도 용인시 수지구";
+        List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
+        Order order = orders.get(0);
+        Long orderId = order.getId();
+        order.updateOrderState(OrderState.배송중);
+
+        Throwable ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.cancel("greatpeople", orderId, 100000000000L)
+        );
+        assertEquals("주문 취소 불가", ex.getMessage());
     }
 
     @DisplayName("본인 혹은 운영자가 아닌 사람이 주문취소할 때")
@@ -355,6 +424,10 @@ public class ProductServiceTests {
 
         // 어드민이 삭제
         productService.cancel("admin's primary-key", orderId, 10000000L);
+        assertThrows(Exception.class, () ->
+                orderRepository.getById(orderId)
+        );
+
     }
 
     @DisplayName("부분 취소")
@@ -413,4 +486,56 @@ public class ProductServiceTests {
         );
     }
 
+    @DisplayName("주문금액이 맞게 설정되는지")
+    @Test
+    void Should_Set_Correct_OrderAmount() {
+        // 1L: 20000원, 2L: 10000원, 3L: 40000원
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L, 3L));
+        final List<Long> quantity = new ArrayList<>(List.of(1L, 1L, 1L));
+        final String address = "경기도 용인시 수지구";
+
+        List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
+        Order order = orders.get(0);
+
+        List<OrderRespDTO.History> result = new ArrayList<>();
+        List<OrderedProduct> orderedProducts = orderedProductRepository.findAllByOrderId(order.getId());
+        result.add(OrderRespDTO.History.from(order, orderedProducts.stream().map(OrderRespDTO.OrderProduct::from).collect(Collectors.toList())));
+
+        assertEquals(70000L, result.get(0).getOrderAmount());
+    }
+
+    @DisplayName("주문내역의 주문수량 맞게 설정되는지")
+    @Test
+    void Should_Set_Correct_Quantity() {
+        // 1L: 20000원, 2L: 10000원, 3L: 40000원
+        final List<Long> productIds = new ArrayList<>(List.of(1L, 2L, 3L));
+        final List<Long> quantity = new ArrayList<>(List.of(2L, 4L, 3L));
+        final String address = "경기도 용인시 수지구";
+
+        List<Order> orders = productService.order("greatpeople", productIds, 100000000000L, address, quantity);
+        Order order = orders.get(0);
+        List<OrderRespDTO.History> result = new ArrayList<>();
+        List<OrderedProduct> orderedProducts = orderedProductRepository.findAllByOrderId(order.getId());
+        result.add(OrderRespDTO.History.from(order, orderedProducts.stream().map(OrderRespDTO.OrderProduct::from).collect(Collectors.toList())));
+        List<OrderRespDTO.OrderProduct> orderProducts = result.get(0).getOrderProducts();
+
+        assertEquals(200000L, result.get(0).getOrderAmount());
+        assertEquals(2L, orderProducts.get(0).getQuantity());
+        assertEquals(4L, orderProducts.get(1).getQuantity());
+        assertEquals(3L, orderProducts.get(2).getQuantity());
+    }
+
+    @DisplayName("전시일이 1보다 작거나 12보다 클때")
+    @Test
+    void Should_ThrowException_WhenDisplayDateIsGreaterThan12_Or_LessThan1(){
+
+        assertThrows(IllegalArgumentException.class, () ->
+                productService.getOrderHistoryByMonthPeriod("greatpeople",0)
+        );
+
+        assertThrows(IllegalArgumentException.class, () ->
+                productService.getOrderHistoryByMonthPeriod("greatpeople",13)
+        );
+
+    }
 }

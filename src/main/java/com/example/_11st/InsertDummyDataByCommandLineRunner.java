@@ -166,6 +166,10 @@ public class InsertDummyDataByCommandLineRunner implements CommandLineRunner {
         final String address3 = "경기도 용인시 수지구";
         productService.order("badpeople", productIds3, 1000000000000L, address3, quantity3);
 
+        final List<Long> productIds4 = new ArrayList<>(List.of(1L, 2L, 3L));
+        final List<Long> quantity4 = new ArrayList<>(List.of(3L, 1L, 2L));
+        final String address4 = "경기도 용인시 수지구";
+        productService.order("greatpeople", productIds4, 1000000000000L, address4, quantity4);
 
     }
 }

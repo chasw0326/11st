@@ -2,8 +2,8 @@ package com.example._11st.service;
 
 
 import com.example._11st.domain.*;
-import com.example._11st.dto.Response.OrderRespDTO;
-import com.example._11st.dto.Response.ProductRespDTO;
+import com.example._11st.dto.response.OrderRespDTO;
+import com.example._11st.dto.response.ProductRespDTO;
 import com.example._11st.repository.CancelRepository;
 import com.example._11st.repository.OrderRepository;
 import com.example._11st.repository.OrderedProductRepository;
@@ -34,7 +34,7 @@ public class ProductServiceImpl implements ProductService {
     private final OrderedProductRepository orderedProductRepository;
     private final SellerServiceImpl sellerService;
 
-    private final String ADMINISTRATOR = "admin's primary-key";
+    private static final String ADMINISTRATOR = "admin's primary-key";
 
 
     @Override
@@ -43,8 +43,7 @@ public class ProductServiceImpl implements ProductService {
         checkArgument(StringUtils.isNotEmpty(displayDate), "displayDate는 필수값 입니다.");
         checkLocalDateTimeRegex(displayDate);
 
-        LocalDateTime date = LocalDateTime.parse(displayDate,
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        LocalDateTime date = parse(displayDate);
 
         List<Product> products = productRepository.getAllByDisplayStartAtIsLessThanEqualAndDisplayEndAtIsGreaterThanEqual(date, date);
 
@@ -62,7 +61,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public List<Order> order(String userId, List<Long> productIds, Long price, String address, List<Long> quantity) {
+    public List<Order> order(String userId, List<Long> productIds, Long amount, String address, List<Long> quantity) {
         checkArgument(ObjectUtils.isNotEmpty(userId), "userId는 필수값 입니다.");
         checkArgument(ObjectUtils.isNotEmpty(productIds), "productIds는 필수값 입니다.");
         checkArgument(StringUtils.isNotEmpty(address), "address는 필수값 입니다.");
@@ -81,7 +80,11 @@ public class ProductServiceImpl implements ProductService {
         }
 
         int quantityIdx = 0;
-        for (Long sellerId : sellerProductMap.keySet()) {
+        for (Map.Entry<Long, List<Long>> sellerProduct : sellerProductMap.entrySet()) {
+            Long sellerId = sellerProduct.getKey();
+            List<Long> productsBySeller = sellerProduct.getValue();
+//        }
+//        for (Long sellerId : sellerProductMap.keySet()) {
             Order order = Order.builder()
                     .userId(userId)
                     .seller(sellerService.getSeller(sellerId))
@@ -90,11 +93,12 @@ public class ProductServiceImpl implements ProductService {
             orders.add(order);
             orderRepository.save(order);
 
-            for (Long productId : sellerProductMap.get(sellerId)) {
+            for (Long productId : productsBySeller) {
 
                 Product product = this.getProduct(productId);
 
-                if ((price -= product.getPrice()) < 0) {
+                amount -= product.getPrice();
+                if (amount < 0) {
                     throw new IllegalArgumentException("주문금액이 부족합니다.");
                 }
 
@@ -108,15 +112,17 @@ public class ProductServiceImpl implements ProductService {
 
                 product.updateStock(quantity.get(quantityIdx));
 
+                Long orderAmount = quantity.get(quantityIdx) * product.getPrice();
+
                 OrderedProduct orderedProduct = OrderedProduct.builder()
                         .order(order)
                         .product(product)
                         .quantity(quantity.get(quantityIdx))
-                        .amount(quantity.get(quantityIdx) * product.getPrice())
+                        .amount(orderAmount)
                         .build();
 
                 orderedProductRepository.save(orderedProduct);
-                order.updateOrderAmount(product.getPrice());
+                order.updateOrderAmount(orderAmount);
                 quantityIdx += 1;
             }
         }
@@ -155,6 +161,10 @@ public class ProductServiceImpl implements ProductService {
 
         long orderAmount = orderedProducts.stream().map(orderedProduct -> orderedProduct.getProduct().getPrice()).mapToLong(i -> i).sum();
         if (orderAmount <= price) {
+            for (OrderedProduct orderedProduct : orderedProducts) {
+                Product product = orderedProduct.getProduct();
+                product.updateStock(orderedProduct.getQuantity());
+            }
             orderRepository.delete(order);
             return order;
         }
@@ -172,7 +182,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<OrderRespDTO.History> getOrderHistoryByBetweenStartAndEnd(String userId, String startAt, String endAt) {
         checkArgument(ObjectUtils.isNotEmpty(userId), "userId는 필수값 입니다.");
         checkArgument(StringUtils.isNotEmpty(startAt), "startAt은 필수값 입니다.");
@@ -180,10 +190,8 @@ public class ProductServiceImpl implements ProductService {
         checkLocalDateTimeRegex(startAt);
         checkLocalDateTimeRegex(endAt);
 
-        LocalDateTime fromDate = LocalDateTime.parse(startAt,
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        LocalDateTime toDate = LocalDateTime.parse(endAt,
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        LocalDateTime fromDate = this.parse(startAt);
+        LocalDateTime toDate = this.parse(endAt);
 
         List<OrderRespDTO.History> result = new ArrayList<>();
         List<Order> orders = orderRepository.findAllByUserAndCreatedAtIsGreaterThanEqualAndCreatedAtIsLessThanEqual(userId, fromDate, toDate);
@@ -197,10 +205,14 @@ public class ProductServiceImpl implements ProductService {
 
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<OrderRespDTO.History> getOrderHistoryByMonthPeriod(String userId, int period) {
         checkArgument(ObjectUtils.isNotEmpty(userId), "userId는 필수값 입니다.");
         checkArgument(ObjectUtils.isNotEmpty(period), "period는 필수값 입니다.");
+
+        if (period < 1 || period > 12) {
+            throw new IllegalArgumentException("잘못된 기간입니다.");
+        }
 
         LocalDateTime startAt = LocalDateTime.now().minusMonths(period);
         List<OrderRespDTO.History> result = new ArrayList<>();
@@ -218,9 +230,13 @@ public class ProductServiceImpl implements ProductService {
 
         final String PATTERN = "^([0-9]{4})-([0-1][0-9])-([0-3][0-9])\\s([0-1][0-9]|[2][0-3]):([0-5][0-9]):([0-5][0-9])$";
 
-        if (!displayDate.matches(PATTERN)){
+        if (!displayDate.matches(PATTERN)) {
             throw new IllegalArgumentException("잘못된 날짜 입니다.");
         }
     }
 
+    private LocalDateTime parse(String date) {
+        return LocalDateTime.parse(date,
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    }
 }

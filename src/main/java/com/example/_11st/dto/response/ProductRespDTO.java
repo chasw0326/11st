@@ -1,4 +1,4 @@
-package com.example._11st.dto.Response;
+package com.example._11st.dto.response;
 
 import com.example._11st.domain.Product;
 import lombok.*;

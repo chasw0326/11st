@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @Transactional
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
-public class ProductTests {
+class ProductTests {
 
     @Autowired
     private ProductRepository productRepository;
