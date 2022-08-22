@@ -1,9 +1,8 @@
 package com.example._11st;
 
-import com.example._11st.domain.Order;
-import com.example._11st.domain.Product;
-import com.example._11st.domain.ProductState;
-import com.example._11st.domain.Seller;
+
+import com.example._11st.domain.*;
+import com.example._11st.repository.OrderRepository;
 import com.example._11st.repository.OrderedProductRepository;
 import com.example._11st.repository.ProductRepository;
 import com.example._11st.repository.SellerRepository;
@@ -12,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 
 import java.time.LocalDateTime;
@@ -26,9 +26,11 @@ public class InsertDummyDataByCommandLineRunner implements CommandLineRunner {
     private final SellerRepository sellerRepository;
     private final ProductRepository productRepository;
     private final OrderedProductRepository orderedProductRepository;
+    private final OrderRepository orderRepository;
     private final ProductService productService;
 
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
 
         this.insertSellers();
@@ -171,5 +173,8 @@ public class InsertDummyDataByCommandLineRunner implements CommandLineRunner {
         final String address4 = "경기도 용인시 수지구";
         productService.order("greatpeople", productIds4, 1000000000000L, address4, quantity4);
 
+        Order order = orderRepository.getById(4L);
+        order.updateOrderState(OrderState.배송준비중);
+        orderRepository.save(order);
     }
 }

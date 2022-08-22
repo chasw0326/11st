@@ -83,8 +83,7 @@ public class ProductServiceImpl implements ProductService {
         for (Map.Entry<Long, List<Long>> sellerProduct : sellerProductMap.entrySet()) {
             Long sellerId = sellerProduct.getKey();
             List<Long> productsBySeller = sellerProduct.getValue();
-//        }
-//        for (Long sellerId : sellerProductMap.keySet()) {
+
             Order order = Order.builder()
                     .userId(userId)
                     .seller(sellerService.getSeller(sellerId))

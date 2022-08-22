@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @Transactional
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
-public class ProductReqDTOTests {
+class ProductReqDTOTests {
 
     @Autowired
     private ValidateUtil validateUtil;
