@@ -44,7 +44,7 @@ java -jar _11st-0.0.1-SNAPSHOT.jar
 - Java Docs
 - WebTestClient
 
-# 개선할 점(To do)
+# 개선할 점()
 - mock을 통해 격리하여 진정한 단위테스트로 수정할 것
 - 주문-재고에 대한 동시성 제어 추가할 것
     - 재고가 0 미만이 되는 곳(임계영역)에 Synchronized를 통한 비관적락으로 순차적으로 진행되게 하면 어떨까?
