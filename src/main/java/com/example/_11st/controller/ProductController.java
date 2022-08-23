@@ -14,6 +14,9 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import java.util.List;
 
+/**
+ * 깃허브 위키 참조
+ */
 @RequestMapping("/api")
 @RestController
 @RequiredArgsConstructor

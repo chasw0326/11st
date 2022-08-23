@@ -34,9 +34,15 @@ public class ProductServiceImpl implements ProductService {
     private final OrderedProductRepository orderedProductRepository;
     private final SellerServiceImpl sellerService;
 
+
     private static final String ADMINISTRATOR = "admin's primary-key";
 
 
+    /**
+     * 상품목록 조회
+     * @param displayDate ex) 2022-01-01 00:00:00
+     * @return 상품목록
+     */
     @Override
     @Transactional(readOnly = true)
     public List<ProductRespDTO.Inquiry> getProductDTO(String displayDate) {
@@ -50,6 +56,11 @@ public class ProductServiceImpl implements ProductService {
         return products.stream().map(ProductRespDTO.Inquiry::from).collect(Collectors.toList());
     }
 
+    /**
+     * 서비스내에서 이용
+     * @param productId pk
+     * @return product
+     */
     @Override
     @Transactional(readOnly = true)
     public Product getProduct(Long productId) {
@@ -59,6 +70,15 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new EntityNotFoundException("can not find product by productId: " + productId));
     }
 
+    /**
+     * 상품주문
+     * @param userId userPk
+     * @param productIds productPk List
+     * @param amount 주문금액
+     * @param address 주문주소
+     * @param quantity 상품개수들
+     * @return seller가 N명이면 N개 주문 생성
+     */
     @Override
     @Transactional
     public List<Order> order(String userId, List<Long> productIds, Long amount, String address, List<Long> quantity) {
@@ -129,6 +149,13 @@ public class ProductServiceImpl implements ProductService {
         return orders;
     }
 
+    /**
+     * 전체취소, 부분취소
+     * @param userId userPk
+     * @param orderId orderPk
+     * @param price 취소금액
+     * @return 주문상태에 따라 다름 깃허브 wiki 참조
+     */
     @Override
     @Transactional
     public Order cancel(String userId, Long orderId, Long price) {
@@ -180,6 +207,13 @@ public class ProductServiceImpl implements ProductService {
         return order;
     }
 
+    /**
+     * 범위기반 주문내역 구하기
+     * @param userId userPk
+     * @param startAt 시작일
+     * @param endAt 종료일
+     * @return 주문내역
+     */
     @Override
     @Transactional(readOnly = true)
     public List<OrderRespDTO.History> getOrderHistoryByBetweenStartAndEnd(String userId, String startAt, String endAt) {
@@ -203,6 +237,12 @@ public class ProductServiceImpl implements ProductService {
     }
 
 
+    /**
+     * n개월내 주문목록구하기
+     * @param userId userPk
+     * @param period 개월
+     * @return 주문내역
+     */
     @Override
     @Transactional(readOnly = true)
     public List<OrderRespDTO.History> getOrderHistoryByMonthPeriod(String userId, int period) {
@@ -225,6 +265,10 @@ public class ProductServiceImpl implements ProductService {
         return result;
     }
 
+    /**
+     * Check LocalDateTime Regex
+     * @param displayDate ex) 2022-09-01 00:00:00
+     */
     private void checkLocalDateTimeRegex(String displayDate) {
 
         final String PATTERN = "^([0-9]{4})-([0-1][0-9])-([0-3][0-9])\\s([0-1][0-9]|[2][0-3]):([0-5][0-9]):([0-5][0-9])$";
@@ -234,6 +278,11 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
+    /**
+     * parse String to LocalDatetime
+     * @param date 문자열 날짜
+     * @return LocalDateTime
+     */
     private LocalDateTime parse(String date) {
         return LocalDateTime.parse(date,
                 DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));

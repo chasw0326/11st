@@ -209,7 +209,6 @@ class ProductServiceTests {
 
         assertEquals(address, orders.get(0).getAddress());
         assertEquals(1, orders.size());
-
     }
 
     @DisplayName("Order에 맞는 OrderedProduct들이 생성되는지")
