@@ -41,4 +41,5 @@ java -jar _11st-0.0.1-SNAPSHOT.jar
 - SonarLint
 - Junit5
 - Mockito, BDD
+- Java Docs
 - WebTestClient
